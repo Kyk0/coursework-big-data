@@ -1,0 +1,140 @@
+Universal hashing
+Using universal hashing (in a randomized algorithm or data structure) refers to selecting a hash function at random from a family of hash functions with a certain mathematical property (see definition below). This guarantees a low number of collisions in expectation, even if the data is chosen by an adversary. Many universal families are known (for hashing integers, vectors, strings), and their evaluation is often very efficient. Universal hashing has numerous uses in computer science, for example in implementations of hash tables, randomized algorithms, and cryptography.
+
+Introduction
+See also: Hash function
+
+Assume we want to map keys from some universe U into m bins (labelled [m] = \{0, \dots, m-1\}). The algorithm will have to handle some data set S \subseteq U of |S|=n keys, which is not known in advance. Usually, the goal of hashing is to obtain a low number of collisions (keys from S that land in the same bin). A deterministic hash function cannot offer any guarantee in an adversarial setting if the size of U is greater than m^2, since the adversary may choose S to be precisely the preimage of a bin. This means that all data keys land in the same bin, making hashing useless. Furthermore, a deterministic hash function does not allow for rehashing: sometimes the input data turns out to be bad for the hash function (e.g. there are too many collisions), so one would like to change the hash function.
+
+The solution to these problems is to pick a function randomly from a family of hash functions. A family of functions H = \{ h : U \to [m] \} is called a universal family if, \forall x, y \in U, ~ x\ne y: ~~ \Pr_{h\in H} [h(x) = h(y)] \le \frac{1}{m}.
+
+In other words, any two keys of the universe collide with probability at most 1/m when the hash function h is drawn randomly from H. This is exactly the probability of collision we would expect if the hash function assigned truly random hash codes to every key. Sometimes, the definition is relaxed to allow collision probability O(1/m). This concept was introduced by Carter and Wegman[1] in 1977, and has found numerous applications in computer science (see, for example [2]). If we have an upper bound of \epsilon<1 on the collision probability, we say that we have \epsilon-almost universality.
+
+Many, but not all, universal families have the following stronger uniform difference property:
+
+    \forall x,y\in U, ~ x\ne y, when h is drawn randomly from the family H, the difference h(x)-h(y) ~\bmod~ m is uniformly distributed in [m].
+
+Note that the definition of universality is only concerned with whether h(x)-h(y)=0, which counts collisions. The uniform difference property is stronger.
+
+(Similarly, a universal family can be XOR universal if \forall x,y\in U, ~ x\ne y, the value h(x) \oplus h(y) ~\bmod~ m is uniformly distributed in [m] where \oplus is the bitwise exclusive or operation. This is only possible if m is a power of two.)
+
+An even stronger condition is pairwise independence: we have this property when \forall x,y\in U, ~ x\ne y we have the probability that x,y will hash to any pair of hash values z_1, z_2 is as if they were perfectly random: P(h(x)=z_1 \land h(y)=z_2)= 1/m^2. Pairwise independence is sometimes called strong universality.
+
+Another property is uniformity. We say that a family is uniform if all hash values are equally likely: P(h(x)=z)=1/m for any hash value z. Universality does not imply uniformity. However, strong universality does imply uniformity.
+
+Given a family with the uniform distance property, one can produce a pairwise independent or strongly universal hash family by adding a uniformly distributed random constant with values in [m] to the hash functions. (Similarly, if m is a power of two, we can achieve pairwise independence from an XOR universal hash family by doing an exclusive or with a uniformly distributed random constant.) Since a shift by a constant is sometimes irrelevant in applications (e.g. hash tables), a careful distinction between the uniform distance property and pairwise independent is sometimes not made.[3]
+
+For some applications (such as hash tables), it is important for the least significant bits of the hash values to be also universal. When a family is strongly universal, this is guaranteed: if H is a strongly universal family with m=2^L, then the family made of the functions h \bmod{2^{L'}} for all h \in H is also strongly universal for L'\leq L. Unfortunately, the same is not true of (merely) universal families. For example the family made of the identity function h(x)=x is clearly universal, but the family made of the function h(x)=x \bmod{2^{L'}} fails to be universal.
+Mathematical guarantees
+
+For any fixed set S of n keys, using a universal family guarantees the following properties.
+
+    For any fixed x in S, the expected number of keys in the bin h(x) is n/m. When implementing hash tables by chaining, this number is proportional to the expected running time of an operation involving the key x (for example a query, insertion or deletion).
+    The expected number of pairs of keys x,y in S with x\ne y that collide (h(x) = h(y)) is bounded above by n(n-1)/2m, which is of order O(n^2/m). When the number of bins, m, is O(n), the expected number of collisions is O(n). When hashing into n^2 bins, there are no collisions at all with probability at least a half.
+    The expected number of keys in bins with at least t keys in them is bounded above by 2n/(t-2(n/m)+1).[4] Thus, if the capacity of each bin is capped to three times the average size (t = 3n/m), the total number of keys in overflowing bins is at most O(m). This only holds with a hash family whose collision probability is bounded above by 1/m. If a weaker definition is used, bounding it by O(1/m), this result is no longer true.[4]
+
+As the above guarantees hold for any fixed set S, they hold if the data set is chosen by an adversary. However, the adversary has to make this choice before (or independent of) the algorithm's random choice of a hash function. If the adversary can observe the random choice of the algorithm, randomness serves no purpose, and the situation is the same as deterministic hashing.
+
+The second and third guarantee are typically used in conjunction with rehashing. For instance, a randomized algorithm may be prepared to handle some O(n) number of collisions. If it observes too many collisions, it chooses another random h from the family and repeats. Universality guarantees that the number of repetitions is a geometric random variable.
+Constructions
+
+Since any computer data can be represented as one or more machine words, one generally needs hash functions for three types of domains: machine words ("integers"); fixed-length vectors of machine words; and variable-length vectors ("strings").
+Hashing integers
+
+This section refers to the case of hashing integers that fit in machines words; thus, operations like multiplication, addition, division, etc. are cheap machine-level instructions. Let the universe to be hashed be U = \{0, \dots, u-1\}.
+
+The original proposal of Carter and Wegman[1] was to pick a prime p \ge u and define
+
+    h_{a,b}(x) = ((ax + b)~\bmod ~ p)~\bmod ~ m
+
+where a,b are randomly chosen integers modulo p with a \neq 0. Technically, adding b is not needed for universality (but it does make the hash function 2-independent). (This is a single iteration of a linear congruential generator).
+
+To see that H = \{ h_{a,b} \} is a universal family, note that h(x) = h(y) only holds when
+
+    ax+b \equiv ay + b + i\cdot m \pmod{p}
+
+for some integer i between 0 and p/m. If x \neq y, their difference, x-y is nonzero and has an inverse modulo p. Solving for a,
+
+    a \equiv i\cdot m \cdot (x-y)^{-1} \pmod{p}.
+
+There are p-1 possible choices for a (since a=0 is excluded) and, varying i in the allowed range, \lfloor p/m \rfloor possible values for the right hand side. Thus the collision probability is
+
+    \lfloor p/m \rfloor / (p-1)
+
+which tends to 1/m for large p as required. This analysis also shows that b does not have to be randomised in order to have universality.
+
+Another way to see H is a universal family is via the notion of statistical distance. Write the difference h(x) - h(y) as
+
+    h(x)-h(y) \equiv (a(x-y)~ \bmod~ p) \pmod{m}.
+
+Since x - y is nonzero and a is uniformly distributed in \{1,\dots,p\}, it follows that a(x-y) modulo p is also uniformly distributed in \{1,\dots,p\}. The distribution of (h(x)-h(y)) ~\bmod~ m is thus almost uniform, up to a difference in probability of \pm 1/p between the samples. As a result, the statistical distance to a uniform family is O(m/p), which becomes negligible when p \gg m.
+Avoiding modular arithmetic
+
+The state of the art for hashing integers is the multiply-shift scheme described by Dietzfelbinger et al. in 1997.[5] By avoiding modular arithmetic, this method is much easier to implement and also runs significantly faster in practice (usually by at least a factor of four[6]). The scheme assumes the number of bins is a power of two, m=2^M. Let w be the number of bits in a machine word. Then the hash functions are parametrised over odd positive integers a < 2^w (that fit in a word of w bits). To evaluate h_{a}(x), multiply x by a modulo 2^w and then keep the high order M bits as the hash code. In mathematical notation, this is
+
+    h_a(x) = (a\cdot x\,\, \bmod\, 2^w)\,\, \mathrm{div}\,\, 2^{w-M}
+
+and it can be implemented in C-like programming languages by
+
+    h_a(x) = (unsigned) (a*x) >> (w-M)
+
+This scheme does not satisfy the uniform difference property and is only 2/m-almost-universal; for any x\neq y, \Pr\{h_a(x) = h_a(y)\} \le 2/m.
+
+To understand the behavior of the hash function, notice that, if ax \bmod 2^w and ay\bmod 2^w have the same highest-order 'M' bits, then a(x-y) \bmod 2^w has either all 1's or all 0's as its highest order M bits (depending on whether ax \bmod 2^w or ay \bmod 2^w is larger. Assume that the least significant set bit of x-y appears on position w-c. Since a is a random odd integer and odd integers have inverses in the ring Z_{2^w}, it follows that a(x-y)\bmod 2^w will be uniformly distributed among w-bit integers with the least significant set bit on position w-c. The probability that these bits are all 0's or all 1's is therefore at most 2/2^M=2/m. On the other hand, if c < M, then higher-order M bits of a(x-y) \bmod 2^w contain both 0's and 1's, so it is certain that h(x) \ne h(y). Finally, if c=M then bit w-M of a(x-y) \bmod 2^w is 1 and h_a(x)=h_a(y) if and only if bits w-1,\ldots,w-M+1 are also 1, which happens with probability 1/2^{M-1}=2/m.
+
+This analysis is tight, as can be shown with the example x=2^{w-M-2} and y=3x. To obtain a truly 'universal' hash function, one can use the multiply-add-shift scheme
+
+    h_{a,b}(x) = ((ax + b) \bmod 2^w)\, \mathrm{div}\, 2^{w-M}
+
+which can be implemented in C-like programming languages by
+
+    h_{a,b}(x) = (unsigned) (a*x+b) >> (w-M)
+
+where a is a random odd positive integer with a < 2^w and b is a random non-negative integer with b < 2^{w-M}. With these choices of a and b, \Pr\{h_{a,b}(x) = h_{a,b}(y)\}\le 1/m for all x\not\equiv y\pmod{2^w}.[7] This differs slightly but importantly from the mistranslation in the English paper.[8]
+Hashing vectors
+
+This section is concerned with hashing a fixed-length vector of machine words. Interpret the input as a vector \bar{x} = (x_0, \dots, x_{k-1}) of k machine words (integers of w bits each). If H is a universal family with the uniform difference property, the following family (dating back to Carter and Wegman[1]) also has the uniform difference property (and hence is universal):
+
+    h(\bar{x}) = \left( \sum_{i=0}^{k-1} h_i(x_i) \right)\,\bmod~m, where each h_i\in H is chosen independently at random.
+
+If m is a power of two, one may replace summation by exclusive or.[9]
+
+In practice, if double-precision arithmetic is available, this is instantiated with the multiply-shift hash family of.[10] Initialize the hash function with a vector \bar{a} = (a_0, \dots, a_{k-1}) of random odd integers on 2w bits each. Then if the number of bins is m=2^M for M\le w:
+
+    h_{\bar{a}}(\bar{x}) = \left(\big( \sum_{i=0}^{k-1} x_i \cdot a_i \big) ~\bmod ~ 2^{2w} \right) \,\, \mathrm{div}\,\, 2^{2w-M}.
+
+It is possible to halve the number of multiplications, which roughly translates to a two-fold speed-up in practice.[9] Initialize the hash function with a vector \bar{a} = (a_0, \dots, a_{k-1}) of random odd integers on 2w bits each. The following hash family is universal:[11]
+
+    h_{\bar{a}}(\bar{x}) = \left(\Big( \sum_{i=0}^{\lceil k/2 \rceil} (x_{2i} + a_{2i}) \cdot (x_{2i+1} + a_{2i+1}) \Big) \bmod ~ 2^{2w} \right) \,\, \mathrm{div}\,\, 2^{2w-M}.
+
+If double-precision operations are not available, one can interpret the input as a vector of half-words (w/2-bit integers). The algorithm will then use \lceil k/2 \rceil multiplications, where k was the number of half-words in the vector. Thus, the algorithm runs at a "rate" of one multiplication per word of input.
+
+The same scheme can also be used for hashing integers, by interpreting their bits as vectors of bytes. In this variant, the vector technique is known as tabulation hashing and it provides a practical alternative to multiplication-based universal hashing schemes.[12]
+
+Strong universality at high speed is also possible.[13] Initialize the hash function with a vector \bar{a} = (a_0, \dots, a_{k}) of random integers on 2w bits. Compute
+
+    h_{\bar{a}}(\bar{x})^{\mathrm{strong}} = (a_0 + \sum_{i=0}^{k} a_{i+1} x_{i} \bmod ~ 2^{2w} ) \div 2^w .
+
+The result is strongly universal on w bits. Experimentally, it was found to run at 0.2 CPU cycle per byte on recent Intel processors for w = 32.
+Hashing strings
+
+This refers to hashing a variable-sized vector of machine words. If the length of the string can be bounded by a small number, it is best to use the vector solution from above (conceptually padding the vector with zeros up to the upper bound). The space required is the maximal length of the string, but the time to evaluate h(s) is just the length of s. As long as zeroes are forbidden in the string, the zero-padding can be ignored when evaluating the hash function without affecting universality[9]). Note that if zeroes are allowed in the string, then it might be best to append a fictitious non-zero (e.g., 1) character to all strings prior to padding: this will ensure that universality is not affected.[13]
+
+Now assume we want to hash \bar{x} = (x_0,\dots, x_\ell), where a good bound on \ell is not known a priori. A universal family proposed by [10] treats the string x as the coefficients of a polynomial modulo a large prime. If x_i \in [u], let p \ge \max \{ u, m \} be a prime and define:
+
+    h_a(\bar{x}) = h_\mathrm{int} \left( \big(\sum_{i=0}^\ell x_i\cdot a^i \big) \bmod ~p \right), where a \in [p] is uniformly random and h_\mathrm{int} is chosen randomly from a universal family mapping integer domain [p] \mapsto [m].
+
+Using properties of modular arithmetic, above can be computed without producing large numbers for large strings as follows:[14]
+
+int hash(String x, int a, int p)
+	int h=x[0]
+	for (int i=1 ; i < x.length ; i++)
+		h = ((h*a) + x[i])) mod p
+	return h
+
+Consider two strings \bar{x}, \bar{y} and let \ell be length of the longer one; for the analysis, the shorter string is conceptually padded with zeros up to length \ell. A collision before applying h_\mathrm{int} implies that a is a root of the polynomial with coefficients \bar{x} - \bar{y}. This polynomial has at most \ell roots modulo p, so the collision probability is at most \ell/p. The probability of collision through the random h_\mathrm{int} brings the total collision probability to \frac{1}{m} + \frac{\ell}{p}. Thus, if the prime p is sufficiently large compared to the length of strings hashed, the family is very close to universal (in statistical distance).
+
+To mitigate the computational penalty of modular arithmetic, two tricks are used in practice:[9]
+
+    One chooses the prime p to be close to a power of two, such as a Mersenne prime. This allows arithmetic modulo p to be implemented without division (using faster operations like addition and shifts). For instance, on modern architectures one can work with p = 2^{61}-1, while x_i's are 32-bit values.
+    One can apply vector hashing to blocks. For instance, one applies vector hashing to each 16-word block of the string, and applies string hashing to the \lceil k/16 \rceil results. Since the slower string hashing is applied on a substantially smaller vector, this will essentially be as fast as vector hashing.
